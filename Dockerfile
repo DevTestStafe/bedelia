@@ -3,31 +3,33 @@ FROM node:18-alpine AS builder
 
 WORKDIR /app
 
-# Copy root package files
-COPY package.json package-lock.json* ./
+# Copy package.json files
+COPY package.json ./
+COPY api/package.json api/package.json
+COPY api/package-lock.json api/package-lock.json 2>/dev/null || true
 
-# Copy api subdirectory
-COPY api/ api/
-
-# Install root dependencies (actually just needed for the build script to work)
-RUN npm install --omit=dev || true
+# Copy api source code
+COPY api/src api/src
+COPY api/tsconfig.json api/tsconfig.json
 
 # Install and build api
-RUN npm --prefix api install && npm --prefix api run build
+RUN cd api && npm install && npm run build
 
 # Runtime stage
 FROM node:18-alpine
 
 WORKDIR /app
 
-# Copy root package files
-COPY package.json package-lock.json* ./
+# Copy package.json files
+COPY package.json ./
+COPY api/package.json api/package.json
+COPY api/package-lock.json api/package-lock.json 2>/dev/null || true
 
-# Copy api subdirectory
-COPY api/ api/
+# Copy compiled code from builder
+COPY --from=builder /app/api/dist api/dist
 
 # Install only production dependencies
-RUN npm --prefix api install --omit=dev
+RUN cd api && npm install --omit=dev --legacy-peer-deps
 
 # Expose port
 EXPOSE 8080
