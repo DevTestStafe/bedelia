@@ -10,6 +10,5 @@ docs
 .vscode
 dist
 build
-web
 .next
 out

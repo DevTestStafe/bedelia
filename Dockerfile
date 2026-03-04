@@ -9,8 +9,15 @@ COPY package.json ./
 # Copy api directory (includes package.json, package-lock.json, src, tsconfig.json)
 COPY api/ api/
 
-# Install and build api
+# Copy web directory
+COPY web/ web/
+
+# Build frontend against same origin (/api)
+ENV VITE_API_URL=
+
+# Install and build api + web
 RUN cd api && npm install && npm run build
+RUN cd web && npm install && npm run build
 
 # Runtime stage
 FROM node:18-alpine
@@ -25,6 +32,7 @@ COPY api/ api/
 
 # Copy compiled code from builder
 COPY --from=builder /app/api/dist api/dist
+COPY --from=builder /app/web/dist api/public
 
 # Install only production dependencies
 RUN cd api && npm install --omit=dev
