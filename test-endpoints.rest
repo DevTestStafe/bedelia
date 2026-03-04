@@ -1,8 +1,8 @@
 ### ⚙️ CONFIGURACIÓN
-# Reemplaza con tu URL de Railway (ej: bedelia-isef-production.up.railway.app)
-@baseUrl = https://YOUR_RAILWAY_URL
+# URL de Railway
+@baseUrl = https://bedelia-production.up.railway.app
 
-# Reemplaza con tu token Firebase (obtén con: python get_firebase_token.py)
+# Reemplaza con tu token Firebase (obtén con: python get_firebase_token.py testuser@example.com password)
 @token = YOUR_TOKEN_HERE
 
 ###########################################################
