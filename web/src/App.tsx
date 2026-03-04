@@ -79,6 +79,8 @@ const moduleByRole: Record<string, string> = {
   ALUMNO: "Módulo Alumnos"
 };
 
+type ModuleKey = "resumen" | "legajos" | "profesores" | "certificados";
+
 function App() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -191,6 +193,7 @@ function App() {
   const [requestingCertificate, setRequestingCertificate] = useState(false);
   const [requestCertificateTemplate, setRequestCertificateTemplate] = useState("");
   const [requestCertificateStudent, setRequestCertificateStudent] = useState("");
+  const [activeModule, setActiveModule] = useState<ModuleKey>("resumen");
 
   useEffect(() => {
     if (!firebaseAuth) {
@@ -365,6 +368,30 @@ function App() {
     const roles = apiUser?.roles ?? [];
     return roles.includes("PROFESOR") || roles.includes("JEFE_BEDELIA") || roles.includes("SUBJEFE_BEDELIA") || roles.includes("EMPLEADO");
   }, [apiUser?.roles]);
+
+  const sidebarModules = useMemo(() => {
+    const items: { key: ModuleKey; label: string }[] = [{ key: "resumen", label: "Resumen" }];
+
+    if (isLegajoManager) {
+      items.push({ key: "legajos", label: "Legajos" });
+    }
+
+    if (isProfesor) {
+      items.push({ key: "profesores", label: "Profesores" });
+    }
+
+    if (isCertificateManager || isStudent) {
+      items.push({ key: "certificados", label: "Certificados" });
+    }
+
+    return items;
+  }, [isCertificateManager, isLegajoManager, isProfesor, isStudent]);
+
+  useEffect(() => {
+    if (!sidebarModules.some((item) => item.key === activeModule)) {
+      setActiveModule("resumen");
+    }
+  }, [activeModule, sidebarModules]);
 
   const loadAttendances = useCallback(async () => {
     if (!idToken || !isProfesor) {
@@ -1077,8 +1104,24 @@ function App() {
   }
 
   return (
-    <main className="container">
-      <section className="card">
+    <main className="container appLayout">
+      <aside className="card sidebar">
+        <h2>Módulos</h2>
+        <nav className="moduleMenu">
+          {sidebarModules.map((item) => (
+            <button
+              key={item.key}
+              type="button"
+              className={activeModule === item.key ? "menuButton active" : "menuButton"}
+              onClick={() => setActiveModule(item.key)}
+            >
+              {item.label}
+            </button>
+          ))}
+        </nav>
+      </aside>
+
+      <section className="card contentPanel">
         <div className="headerRow">
           <div>
             <h1>Panel del sistema</h1>
@@ -1087,29 +1130,33 @@ function App() {
           <button onClick={handleLogout}>Cerrar sesión</button>
         </div>
 
-        <h2>Roles</h2>
-        {roleNames.length > 0 ? (
-          <ul>
-            {roleNames.map((roleName) => (
-              <li key={roleName}>{roleName}</li>
-            ))}
-          </ul>
-        ) : (
-          <p>No hay roles asignados para este usuario.</p>
-        )}
+        {activeModule === "resumen" ? (
+          <>
+            <h2>Roles</h2>
+            {roleNames.length > 0 ? (
+              <ul>
+                {roleNames.map((roleName) => (
+                  <li key={roleName}>{roleName}</li>
+                ))}
+              </ul>
+            ) : (
+              <p>No hay roles asignados para este usuario.</p>
+            )}
 
-        <h2>Módulos habilitados</h2>
-        {modules.length > 0 ? (
-          <ul>
-            {modules.map((moduleName) => (
-              <li key={moduleName}>{moduleName}</li>
-            ))}
-          </ul>
-        ) : (
-          <p>No hay módulos habilitados.</p>
-        )}
+            <h2>Módulos habilitados</h2>
+            {modules.length > 0 ? (
+              <ul>
+                {modules.map((moduleName) => (
+                  <li key={moduleName}>{moduleName}</li>
+                ))}
+              </ul>
+            ) : (
+              <p>No hay módulos habilitados.</p>
+            )}
+          </>
+        ) : null}
 
-        {isLegajoManager ? (
+        {activeModule === "legajos" && isLegajoManager ? (
           <>
             <h2>Módulo Legajos (Empleados / Jefatura)</h2>
             <form className="inlineForm" onSubmit={handleCreateLegajo}>
@@ -1594,7 +1641,7 @@ function App() {
           </>
         ) : null}
 
-        {isProfesor ? (
+        {activeModule === "profesores" && isProfesor ? (
           <>
             <h2>Módulo Profesores - Asistencias</h2>
             <form className="inlineForm" onSubmit={handleCreateAttendance}>
@@ -2050,7 +2097,7 @@ function App() {
 
 
 
-        {isCertificateManager || isStudent ? (
+        {activeModule === "certificados" && (isCertificateManager || isStudent) ? (
           <>
             <h2>Certificados</h2>
 
