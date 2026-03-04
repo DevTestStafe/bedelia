@@ -55,7 +55,7 @@ import type {
   CertificateRequest,
   CertificateTemplateField
 } from "./lib/api";
-import { firebaseAuth } from "./lib/firebase";
+import { firebaseAuth, firebaseInitError } from "./lib/firebase";
 
 type ApiUser = {
   uid: string;
@@ -193,6 +193,11 @@ function App() {
   const [requestCertificateStudent, setRequestCertificateStudent] = useState("");
 
   useEffect(() => {
+    if (!firebaseAuth) {
+      setLoading(false);
+      return;
+    }
+
     const unsubscribe = onAuthStateChanged(firebaseAuth, async (nextUser) => {
       setFirebaseUser(nextUser);
       setError("");
@@ -219,6 +224,17 @@ function App() {
 
     return () => unsubscribe();
   }, []);
+
+  if (firebaseInitError) {
+    return (
+      <main className="container">
+        <section className="card">
+          <h1>Bedelía ISEF</h1>
+          <p className="error">Error de configuración Firebase: {firebaseInitError}</p>
+        </section>
+      </main>
+    );
+  }
 
   const loadLegajos = useCallback(async () => {
     if (!idToken || !apiUser?.roles.includes("EMPLEADO")) {
@@ -443,6 +459,11 @@ function App() {
     event.preventDefault();
     setError("");
 
+    if (!firebaseAuth) {
+      setError("Firebase no está inicializado en este entorno");
+      return;
+    }
+
     try {
       setLoading(true);
       await signInWithEmailAndPassword(firebaseAuth, email, password);
@@ -454,6 +475,10 @@ function App() {
   }
 
   async function handleLogout() {
+    if (!firebaseAuth) {
+      return;
+    }
+
     setError("");
     setIdToken("");
     setLegajos([]);
