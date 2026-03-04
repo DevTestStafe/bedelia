@@ -36,7 +36,9 @@ import {
   requestCertificate,
   approveCertificate,
   rejectCertificate,
-  downloadCertificatePDF
+  downloadCertificatePDF,
+  createUser,
+  listUsers
 } from "./lib/api";
 import type {
   AnnualEnrollmentItem,
@@ -79,7 +81,7 @@ const moduleByRole: Record<string, string> = {
   ALUMNO: "Módulo Alumnos"
 };
 
-type ModuleKey = "resumen" | "legajos" | "profesores" | "certificados";
+type ModuleKey = "resumen" | "legajos" | "profesores" | "certificados" | "alumnos" | "jefatura" | "empleados" | "usuarios";
 
 function App() {
   const [email, setEmail] = useState("");
@@ -194,6 +196,18 @@ function App() {
   const [requestCertificateTemplate, setRequestCertificateTemplate] = useState("");
   const [requestCertificateStudent, setRequestCertificateStudent] = useState("");
   const [activeModule, setActiveModule] = useState<ModuleKey>("resumen");
+
+  // Users management state
+  const [newUserEmail, setNewUserEmail] = useState("");
+  const [newUserPassword, setNewUserPassword] = useState("");
+  const [newUserDisplayName, setNewUserDisplayName] = useState("");
+  const [newUserRoles, setNewUserRoles] = useState<string[]>([]);
+  const [creatingUser, setCreatingUser] = useState(false);
+  const [createUserError, setCreateUserError] = useState("");
+  const [createUserSuccess, setCreateUserSuccess] = useState("");
+  const [usersList, setUsersList] = useState<any[]>([]);
+  const [usersListLoading, setUsersListLoading] = useState(false);
+  const [usersListError, setUsersListError] = useState("");
 
   useEffect(() => {
     if (!firebaseAuth) {
@@ -369,8 +383,35 @@ function App() {
     return roles.includes("PROFESOR") || roles.includes("JEFE_BEDELIA") || roles.includes("SUBJEFE_BEDELIA") || roles.includes("EMPLEADO");
   }, [apiUser?.roles]);
 
+  const isAlumno = useMemo(() => {
+    const roles = apiUser?.roles ?? [];
+    return roles.includes("ALUMNO");
+  }, [apiUser?.roles]);
+
+  const isJefaturaUser = useMemo(() => {
+    const roles = apiUser?.roles ?? [];
+    return roles.includes("JEFE_BEDELIA") || roles.includes("SUBJEFE_BEDELIA");
+  }, [apiUser?.roles]);
+
+  const isEmpleadoUser = useMemo(() => {
+    const roles = apiUser?.roles ?? [];
+    return roles.includes("EMPLEADO") || roles.includes("JEFE_BEDELIA") || roles.includes("SUBJEFE_BEDELIA");
+  }, [apiUser?.roles]);
+
   const sidebarModules = useMemo(() => {
     const items: { key: ModuleKey; label: string }[] = [{ key: "resumen", label: "Resumen" }];
+
+    if (isAlumno) {
+      items.push({ key: "alumnos", label: "Alumnos" });
+    }
+
+    if (isJefaturaUser) {
+      items.push({ key: "jefatura", label: "Jefatura" });
+    }
+
+    if (isEmpleadoUser) {
+      items.push({ key: "empleados", label: "Empleados" });
+    }
 
     if (isLegajoManager) {
       items.push({ key: "legajos", label: "Legajos" });
@@ -384,8 +425,12 @@ function App() {
       items.push({ key: "certificados", label: "Certificados" });
     }
 
+    if (isJefaturaUser) {
+      items.push({ key: "usuarios", label: "Gestión de Usuarios" });
+    }
+
     return items;
-  }, [isCertificateManager, isLegajoManager, isProfesor, isStudent]);
+  }, [isCertificateManager, isLegajoManager, isProfesor, isStudent, isAlumno, isJefaturaUser, isEmpleadoUser]);
 
   useEffect(() => {
     if (!sidebarModules.some((item) => item.key === activeModule)) {
@@ -1055,6 +1100,52 @@ function App() {
       alert(err instanceof Error ? err.message : "Error rechazando certificado");
     }
   }
+
+  async function handleCreateUser(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!idToken || newUserRoles.length === 0) return;
+
+    try {
+      setCreatingUser(true);
+      setCreateUserError("");
+      setCreateUserSuccess("");
+      await createUser(idToken, newUserEmail, newUserPassword, newUserDisplayName, newUserRoles);
+      setCreateUserSuccess(`Usuario ${newUserEmail} creado exitosamente`);
+      setNewUserEmail("");
+      setNewUserPassword("");
+      setNewUserDisplayName("");
+      setNewUserRoles([]);
+      await loadUsersList();
+    } catch (err) {
+      setCreateUserError(err instanceof Error ? err.message : "Error creando usuario");
+    } finally {
+      setCreatingUser(false);
+    }
+  }
+
+  const loadUsersList = useCallback(async () => {
+    if (!idToken || !isJefaturaUser) {
+      setUsersList([]);
+      return;
+    }
+
+    try {
+      setUsersListLoading(true);
+      setUsersListError("");
+      const result = await listUsers(idToken);
+      setUsersList(result.users);
+    } catch {
+      setUsersListError("No se pudieron cargar los usuarios");
+    } finally {
+      setUsersListLoading(false);
+    }
+  }, [idToken, isJefaturaUser]);
+
+  useEffect(() => {
+    if (activeModule === "usuarios" && isJefaturaUser) {
+      loadUsersList();
+    }
+  }, [activeModule, isJefaturaUser, loadUsersList]);
 
   const roleNames = useMemo(() => {
     const roles = apiUser?.roles ?? [];
@@ -2364,6 +2455,130 @@ function App() {
               </>
             ) : null}
           </>
+        ) : null}
+
+        {activeModule === "alumnos" && isAlumno ? (
+          <section>
+            <h2>Módulo Alumnos</h2>
+            <p>Bienvenido al módulo de consulta e inscripciones. Aquí puedes ver tu información académica y realizar inscripciones.</p>
+          </section>
+        ) : null}
+
+        {activeModule === "jefatura" && isJefaturaUser ? (
+          <section>
+            <h2>Módulo Jefatura</h2>
+            <p>Módulo de aprobación y control para jefes de bedelía.</p>
+          </section>
+        ) : null}
+
+        {activeModule === "empleados" && isEmpleadoUser ? (
+          <section>
+            <h2>Módulo Empleados</h2>
+            <p>Módulo habilitado para carga administrativa.</p>
+          </section>
+        ) : null}
+
+        {activeModule === "usuarios" && isJefaturaUser ? (
+          <section>
+            <h2>Gestión de Usuarios</h2>
+
+            <h3>Crear Nuevo Usuario</h3>
+            {createUserError ? <p className="error">{createUserError}</p> : null}
+            {createUserSuccess ? <p className="success">{createUserSuccess}</p> : null}
+
+            <form onSubmit={handleCreateUser} className="form">
+              <div className="formGroup">
+                <label>Email:</label>
+                <input
+                  type="email"
+                  value={newUserEmail}
+                  onChange={(e) => setNewUserEmail(e.target.value)}
+                  required
+                  placeholder="usuario@example.com"
+                />
+              </div>
+
+              <div className="formGroup">
+                <label>Contraseña:</label>
+                <input
+                  type="password"
+                  value={newUserPassword}
+                  onChange={(e) => setNewUserPassword(e.target.value)}
+                  required
+                  placeholder="Mínimo 6 caracteres"
+                />
+              </div>
+
+              <div className="formGroup">
+                <label>Nombre:</label>
+                <input
+                  type="text"
+                  value={newUserDisplayName}
+                  onChange={(e) => setNewUserDisplayName(e.target.value)}
+                  required
+                  placeholder="Nombre del usuario"
+                />
+              </div>
+
+              <div className="formGroup">
+                <label>Roles:</label>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "10px" }}>
+                  {["ALUMNO", "PROFESOR", "EMPLEADO", "JEFE_BEDELIA", "SUBJEFE_BEDELIA"].map((role) => (
+                    <label key={role} style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+                      <input
+                        type="checkbox"
+                        checked={newUserRoles.includes(role)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setNewUserRoles([...newUserRoles, role]);
+                          } else {
+                            setNewUserRoles(newUserRoles.filter((r) => r !== role));
+                          }
+                        }}
+                      />
+                      {roleLabels[role]}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <button type="submit" disabled={creatingUser || !newUserEmail || !newUserPassword || !newUserDisplayName || newUserRoles.length === 0}>
+                {creatingUser ? "Creando..." : "Crear Usuario"}
+              </button>
+            </form>
+
+            <h3>Lista de Usuarios</h3>
+            {usersListLoading ? (
+              <p>Cargando usuarios...</p>
+            ) : usersListError ? (
+              <p className="error">{usersListError}</p>
+            ) : usersList.length > 0 ? (
+              <div className="tableWrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Email</th>
+                      <th>Nombre</th>
+                      <th>Roles</th>
+                      <th>Creado</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {usersList.map((user) => (
+                      <tr key={user.uid}>
+                        <td>{user.email}</td>
+                        <td>{user.displayName}</td>
+                        <td>{user.roles.map((r: string) => roleLabels[r] ?? r).join(", ")}</td>
+                        <td>{new Date(user.createdAt).toLocaleDateString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p>No hay usuarios registrados</p>
+            )}
+          </section>
         ) : null}
 
         <p className="institution">I.S.E.F. Nro. 27 Prof. César S. Vásquez - Santa Fe Capital</p>

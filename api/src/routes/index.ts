@@ -8,11 +8,13 @@ import { teachersRouter } from "./teachers.routes.js";
 import { subjectsRouter } from "./subjects.routes.js";
 import examBoardsRouter from "./exam-boards.routes.js";
 import certificatesRouter from "./certificates.routes.js";
+import { usersRouter } from "./users.routes.js";
 
 export const appRouter = Router();
 
 appRouter.use(healthRouter);
 appRouter.use("/auth", authRouter);
+appRouter.use("/users", usersRouter);
 appRouter.use("/modulos/empleados", employeesRouter);
 appRouter.use("/modulos/jefatura", managementRouter);
 appRouter.use("/modulos/jefatura", certificatesRouter);

@@ -940,3 +940,46 @@ export function downloadCertificatePDF(_token: string, certificateId: string) {
   // Note: Token is handled via Firebase Auth in the request
   window.open(`${apiUrl}/api/modulos/jefatura/certificates/${certificateId}/pdf`, "_blank");
 }
+
+// Users Management
+export type UserItem = {
+  uid: string;
+  email: string;
+  displayName: string;
+  roles: string[];
+  createdAt: string;
+};
+
+export async function createUser(token: string, email: string, password: string, displayName: string, roles: string[]) {
+  const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:4000";
+  const response = await fetch(`${apiUrl}/api/users/create`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify({ email, password, displayName, roles })
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => ({}));
+    throw new Error(errorBody.error ?? "No se pudo crear el usuario");
+  }
+
+  return response.json() as Promise<{ success: boolean; uid: string; email: string; displayName: string; roles: string[] }>;
+}
+
+export async function listUsers(token: string) {
+  const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:4000";
+  const response = await fetch(`${apiUrl}/api/users/list`, {
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error("No se pudieron listar los usuarios");
+  }
+
+  return response.json() as Promise<{ users: UserItem[] }>;
+}
