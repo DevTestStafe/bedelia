@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.env
+.firebase/
+coverage/
+.env
+.env.local
+.env.*.local
+api/.env
+web/.env
+api/.env.local
+web/.env.local

@@ -1,0 +1,16 @@
+{
+  "name": "bedelia-isef",
+  "version": "1.0.0",
+  "description": "Bedelia ISEF - API y Web",
+  "type": "module",
+  "scripts": {
+    "install-all": "cd api && npm install && cd ../web && npm install",
+    "build": "npm --prefix api install && npm --prefix api run build",
+    "start": "npm --prefix api start",
+    "dev": "cd api && npm run dev"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}
